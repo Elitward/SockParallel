@@ -21,7 +21,7 @@ public class SockIn implements Sock{
 	}
 	
 	@Override
-	public Socket getSocket() {
+	public Socket getLastSocket() {
 		if(listen==null){
 			return null;
 		}else{
@@ -35,5 +35,18 @@ public class SockIn implements Sock{
 			}
 			return server;
 		}
+	}
+
+	@Override
+	public Socket getNewSocket() {
+		Socket newSocket = null;
+		try {
+			newSocket = listen.accept();
+			server = newSocket;
+			System.out.println("SockIn: accepted a socket at " + server.getLocalPort() + "<-" + server.getPort());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return newSocket;
 	}
 }

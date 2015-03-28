@@ -14,7 +14,9 @@ public class Connect {
 	//private final long TOMBSTONE = Long.MAX_VALUE;
 
 	Connect(Sock single, ArrayList<Sock> group){
+		one = single.getNewSocket();
 		for(int i=0; i<group.size(); i++){
+			many.add(group.get(i).getNewSocket());
 		}
 		
 		System.out.println("1~" + many.size());

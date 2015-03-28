@@ -14,14 +14,30 @@ public class SockOut implements Sock{
 	}
 	
 	@Override
-	public Socket getSocket() {
+	public Socket getLastSocket() {
+		if(client==null){
+			try {
+				System.out.println("SockOut: connecting to " + host + ":" + port);
+				client = new Socket(host, port);
+				System.out.println("SockOut: connected a socket at " + client.getLocalPort() + "->" + client.getPort());
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		return client;
+	}
+
+	@Override
+	public Socket getNewSocket() {
+		Socket newSocket = null;
 		try {
 			System.out.println("SockOut: connecting to " + host + ":" + port);
-			client = new Socket(host, port);
+			newSocket = new Socket(host, port);
+			client = newSocket;
 			System.out.println("SockOut: connected a socket at " + client.getLocalPort() + "->" + client.getPort());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return client;
+		return newSocket;
 	}
 }
