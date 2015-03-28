@@ -14,9 +14,7 @@ public class Connect {
 	//private final long TOMBSTONE = Long.MAX_VALUE;
 
 	Connect(Sock single, ArrayList<Sock> group){
-		one = single.getSocket();
 		for(int i=0; i<group.size(); i++){
-			many.add(group.get(i).getSocket());
 		}
 		
 		System.out.println("1~" + many.size());
@@ -32,6 +30,20 @@ public class Connect {
 			group2single.join();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+		}
+		
+		try {
+			one.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		for(Socket temp : many){
+			try {
+				temp.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 	
@@ -137,12 +149,17 @@ public class Connect {
 				
 				int cur = 0;
 				
-				while(true){
+				boolean connectionOK = true;
+				while(connectionOK){
 					for(int i=0; i<is.length; i++){
 						byte[] buffer = new byte[BUFFER_SIZE];
 						int len = is[i].read(buffer, 0, BUFFER_SIZE);
 						
 						System.out.println("ThreadMix: read@" + i + "[l=" + len + "] : " + getHexMain(buffer, 0, len) );
+						if(len<0){
+							connectionOK = false;
+							break;
+						}
 						
 						if(len>0){
 							iBuf[i].append(buffer, len);
@@ -222,7 +239,8 @@ public class Connect {
 				}
 
 				int cur = 0;
-				while(true){
+				boolean connectionOK = true;
+				while(connectionOK){
 					byte[] buffer = new byte[BUFFER_SIZE];
 					int len = is.read(buffer, 0, BUFFER_SIZE);
 					System.out.println("ThreadSplit: read" + "[l=" + len + "] : " + getHexMain(buffer, 0, len) );
@@ -246,6 +264,9 @@ public class Connect {
 								os[i].flush();
 							}
 						}
+					}else{
+						connectionOK = false;
+						break;
 					}
 				}
 			} catch (IOException e) {

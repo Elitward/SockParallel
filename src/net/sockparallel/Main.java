@@ -28,16 +28,17 @@ public class Main {
 			System.out.print(" to " + args[args.length-1]);
 			System.out.println("...");
 
+			//initialize socket in & out
 			for(int i=1; i<args.length-1; i++){
 				int num = Integer.parseInt(args[i]);
 				SockIn sin = new SockIn(num);
 				group.add(sin);
 			}
-
 			single = new SockOut(getHostFromPara(args[args.length-1]), getPortFromPara(args[args.length-1]));
 			
-			/*while(true)*/{
+			while(true){
 				new Connect(single, group);
+				System.out.println("---------- RESET ----------");
 			}
 		}else if(args[0].compareToIgnoreCase(MODE_SPLIT)==0){
 			//split data from 8000 to 101 102 103
@@ -47,14 +48,16 @@ public class Main {
 			}
 			System.out.println("...");
 
+			//initialize socket in & out
 			for(int i=2; i<args.length; i++){
 				SockOut sout = new SockOut(getHostFromPara(args[i]), getPortFromPara(args[i]));
 				group.add(sout);
 			}
 			single = new SockIn(Integer.parseInt(args[1]));
 
-			/*while(true)*/{
+			while(true){
 				new Connect(single, group);
+				System.out.println("---------- RESET ----------");
 			}
 		}else{
 			System.out.println("Mode ERROR:" + args[0]);
