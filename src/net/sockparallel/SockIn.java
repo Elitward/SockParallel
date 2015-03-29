@@ -10,7 +10,7 @@ public class SockIn implements Sock{
 	private Socket server = null;
 	
 	SockIn(int port){
-		if(listen==null){
+		if(listen==null && port>0){
 			try {
 				System.out.println("SockIn: Listening at " + port);
 				listen = new ServerSocket(port);
@@ -27,6 +27,7 @@ public class SockIn implements Sock{
 		}else{
 			if(server==null){
 				try {
+					System.out.println("SockIn: accepting a socket at " + listen.getLocalPort());
 					server = listen.accept();
 					System.out.println("SockIn: accepted a socket at " + server.getLocalPort() + "<-" + server.getPort());
 				} catch (IOException e) {

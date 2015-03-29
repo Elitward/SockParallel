@@ -11,33 +11,52 @@ public class Connect {
 	private Socket one;
 	private ArrayList<Socket> many = new ArrayList<Socket>();
 	
-	//private final long TOMBSTONE = Long.MAX_VALUE;
+	private final long TOMBSTONE = 0; //Long.MAX_VALUE;
 
 	Connect(Sock single, ArrayList<Sock> group){
-		one = single.getNewSocket();
-		for(int i=0; i<group.size(); i++){
-			many.add(group.get(i).getNewSocket());
+		if( single.getClass().getName().compareTo(new SockIn(0).getClass().getName())==0 ){		//single sock in in coming socket (listen)
+			//first accept the single socket
+			one = single.getNewSocket();
+			for(int i=0; i<group.size(); i++){
+				Socket s = group.get(i).getNewSocket();
+				if(s!=null){
+					many.add(s);
+				}
+			}
+			System.out.println("1 -> " + many.size());
+		}else{
+			//first accept all sub socket
+			for(int i=0; i<group.size(); i++){
+				Socket s = group.get(i).getNewSocket();
+				if(s!=null){
+					many.add(s);
+				}
+			}
+			one = single.getNewSocket();
+			System.out.println(many.size() + " -> 1");
 		}
 		
-		System.out.println("1~" + many.size());
-		
-		Thread single2group = new Thread( new ThreadSplit() );
-		Thread group2single = new Thread( new ThreadMix() );
-		
-		single2group.start();
-		group2single.start();
-		
-		try {
-			single2group.join();
-			group2single.join();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+		if(many.size() == group.size() && one!=null){
+			Thread single2group = new Thread( new ThreadSplit() );
+			Thread group2single = new Thread( new ThreadMix() );
+			
+			single2group.start();
+			group2single.start();
+			
+			try {
+				single2group.join();
+				group2single.join();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
 		
-		try {
-			one.close();
-		} catch (IOException e) {
-			e.printStackTrace();
+		if(one!=null){
+			try {
+				one.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		for(Socket temp : many){
@@ -192,14 +211,14 @@ public class Connect {
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
-//				if(TOMBSTONE!=0){
-//					System.err.println("========== TOMBSTONE ==========" + System.currentTimeMillis());
-//					try {
-//						Thread.sleep(TOMBSTONE);
-//					} catch (InterruptedException e1) {
-//						e1.printStackTrace();
-//					}
-//				}
+				if(TOMBSTONE!=0){
+					System.err.println("========== TOMBSTONE ==========" + System.currentTimeMillis());
+					try {
+						Thread.sleep(TOMBSTONE);
+					} catch (InterruptedException e1) {
+						e1.printStackTrace();
+					}
+				}
 			} finally {
 				System.out.println("Final in ThreadMix");
 				for(int i=0; i<is.length; i++){
@@ -273,14 +292,14 @@ public class Connect {
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
-//				if(TOMBSTONE!=0){
-//					System.err.println("========== TOMBSTONE ==========" + System.currentTimeMillis());
-//					try {
-//						Thread.sleep(TOMBSTONE);
-//					} catch (InterruptedException e1) {
-//						e1.printStackTrace();
-//					}
-//				}
+				if(TOMBSTONE!=0){
+					System.err.println("========== TOMBSTONE ==========" + System.currentTimeMillis());
+					try {
+						Thread.sleep(TOMBSTONE);
+					} catch (InterruptedException e1) {
+						e1.printStackTrace();
+					}
+				}
 			} finally {
 				System.out.println("Final in ThreadSplit");
 				if(is!=null){
