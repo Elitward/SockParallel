@@ -37,8 +37,8 @@ public class Connect {
 		}
 		
 		if(many.size() == group.size() && one!=null){
-			Thread single2group = new Thread( new ThreadSplit() );
-			Thread group2single = new Thread( new ThreadMix() );
+			ThreadSplit single2group = new ThreadSplit();
+			ThreadMix group2single = new ThreadMix();
 			
 			single2group.start();
 			group2single.start();
@@ -147,10 +147,56 @@ public class Connect {
 		
 	}
 	
-	class ThreadMix implements Runnable{
+	class ThreadMix extends Thread{
+		private ThreadMix that;
+		private boolean connectionOK;
+		
+		class ThreadRead extends Thread{
+			private int mId;
+			private InputStream mRead;
+			private Buffer mWrite;
+			private long isCnt;
+			
+			ThreadRead(int id, InputStream readFrom, Buffer writeTo){
+				mId = id;
+				mRead = readFrom;
+				mWrite = writeTo;
+				isCnt = 0;
+			}
+
+			@Override
+			public void run() {
+				while(connectionOK){
+					byte[] buffer = new byte[BUFFER_SIZE];
+					int len = -1;
+					try {
+						len = mRead.read(buffer, 0, BUFFER_SIZE);
+						System.out.println(" MIX >: read@" + mId + "[c=" + isCnt + "|l=" + len + "] : " + getHexMain(buffer, 0, len) );
+						isCnt += len;
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					if(len<0){
+						connectionOK = false;
+						break;
+					}
+
+					if(len>0){
+						synchronized (mWrite){
+							mWrite.append(buffer, len);
+						}
+						synchronized(that){
+							that.notify();
+						}
+					}
+				}
+			}
+			
+		}
 
 		@Override
 		public void run() {
+			that = this;
 			InputStream[] is = new InputStream[many.size()];
 			OutputStream os = null;
 			
@@ -160,22 +206,77 @@ public class Connect {
 				iBuf[i] = new Buffer();
 			}
 			
-			long osCnt = 0;
-			long isCnt[] = new long[many.size()];
+			long	osCnt = 0;
+			/*long[]	isCnt = new long[many.size()];
 			for(int i=0; i<isCnt.length; i++){
 				isCnt[i] = 0;
-			}
+			}*/
+			
+			ThreadRead[] tRead = new ThreadRead[many.size()];
 			
 			try {
 				for(int i=0; i<many.size(); i++){
-					InputStream tmp_is = many.get(i).getInputStream();
-					is[i] = tmp_is;
+					is[i] = many.get(i).getInputStream();
+				}
+				os = one.getOutputStream();
+
+				//ReentrantLock lock = new ReentrantLock();
+				
+				for(int i=0; i<many.size(); i++){
+					tRead[i] = new ThreadRead(i, is[i], iBuf[i]);
+					tRead[i].start();
+					System.out.println("MIX:ThreadRead[" + i + "] started");
 				}
 				
-				os = one.getOutputStream();
-				
+				connectionOK = true;
+
 				int cur = 0;
 				
+				while(connectionOK){
+					while(true){
+						synchronized(iBuf[cur]){
+							if(iBuf[cur].getLength()>0){
+								oBuf.append(iBuf[cur].fetch());
+								cur++;
+								if(cur>=many.size())
+									cur = 0;
+							}else{
+								break;
+							}							
+						}
+					}
+						
+					if( oBuf.getLength()>0 ){
+						byte[] buff = oBuf.getBuffer();
+						int offs = oBuf.getOffset();
+						int leng = oBuf.getLength();
+						System.out.println(" MIX >: write[c=" + osCnt + "|l=" + leng + "|o=" + offs + "] : " + getHexMain(buff, offs, leng) );
+						osCnt+=leng;
+						os.write(buff, offs, leng);
+						oBuf.markConsume(leng);
+						os.flush();
+					}else{
+						synchronized(this){
+							try {
+								wait();
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+				}
+				
+				for(int i=0; i<many.size(); i++){
+					try {
+						tRead[i].join();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+
+
+				/*
+				int cur = 0;
 				boolean connectionOK = true;
 				while(connectionOK){
 					for(int i=0; i<is.length; i++){
@@ -215,6 +316,8 @@ public class Connect {
 						}
 					}
 				}
+				*/
+				
 			} catch (IOException e) {
 				e.printStackTrace();
 				/*if(TOMBSTONE!=0){
@@ -243,9 +346,10 @@ public class Connect {
 				}
 			}
 		}
+
 	}
 
-	class ThreadSplit implements Runnable{
+	class ThreadSplit extends Thread{
 
 		@Override
 		public void run() {
@@ -257,8 +361,8 @@ public class Connect {
 				oBuf[i] = new Buffer();
 			}
 
-			long isCnt = 0;
-			long osCnt[] = new long[many.size()];
+			long	isCnt = 0;
+			long[]	osCnt = new long[many.size()];
 			for(int i=0; i<osCnt.length; i++){
 				osCnt[i] = 0;
 			}
