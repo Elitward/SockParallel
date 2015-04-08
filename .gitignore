@@ -63,3 +63,6 @@ $RECYCLE.BIN/
 
 # BitTorrent Sync
 .sync/
+
+*.jar
+*.bat
