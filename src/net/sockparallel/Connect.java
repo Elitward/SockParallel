@@ -11,7 +11,7 @@ public class Connect {
 	private Socket one;
 	private ArrayList<Socket> many = new ArrayList<Socket>();
 	
-	private final long TOMBSTONE = 0; //Long.MAX_VALUE;
+	//private final long TOMBSTONE = 0; //Long.MAX_VALUE;
 
 	Connect(Sock single, ArrayList<Sock> group){
 		if( single.getClass().getName().compareTo(new SockIn(0).getClass().getName())==0 ){		//single sock in in coming socket (listen)
@@ -160,6 +160,12 @@ public class Connect {
 				iBuf[i] = new Buffer();
 			}
 			
+			long osCnt = 0;
+			long isCnt[] = new long[many.size()];
+			for(int i=0; i<isCnt.length; i++){
+				isCnt[i] = 0;
+			}
+			
 			try {
 				for(int i=0; i<many.size(); i++){
 					InputStream tmp_is = many.get(i).getInputStream();
@@ -175,8 +181,8 @@ public class Connect {
 					for(int i=0; i<is.length; i++){
 						byte[] buffer = new byte[BUFFER_SIZE];
 						int len = is[i].read(buffer, 0, BUFFER_SIZE);
-						
-						System.out.println("ThreadMix: read@" + i + "[l=" + len + "] : " + getHexMain(buffer, 0, len) );
+						System.out.println(" MIX >: read@" + i + "[c=" + isCnt[i] + "|l=" + len + "] : " + getHexMain(buffer, 0, len) );
+						isCnt[i] += len;
 						if(len<0){
 							connectionOK = false;
 							break;
@@ -201,8 +207,8 @@ public class Connect {
 							byte[] buff = oBuf.getBuffer();
 							int offs = oBuf.getOffset();
 							int leng = oBuf.getLength();
-							System.out.println("ThreadMix: write[l=" + leng + "|o=" + offs + "] : " + getHexMain(buff, offs, leng) );
-							
+							System.out.println(" MIX >: write[c=" + osCnt + "|l=" + leng + "|o=" + offs + "] : " + getHexMain(buff, offs, leng) );
+							osCnt+=leng;
 							os.write(buff, offs, leng);
 							oBuf.markConsume(leng);
 							os.flush();
@@ -211,14 +217,14 @@ public class Connect {
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
-				if(TOMBSTONE!=0){
+				/*if(TOMBSTONE!=0){
 					System.err.println("========== TOMBSTONE ==========" + System.currentTimeMillis());
 					try {
 						Thread.sleep(TOMBSTONE);
 					} catch (InterruptedException e1) {
 						e1.printStackTrace();
 					}
-				}
+				}*/
 			} finally {
 				System.out.println("Final in ThreadMix");
 				for(int i=0; i<is.length; i++){
@@ -251,6 +257,12 @@ public class Connect {
 				oBuf[i] = new Buffer();
 			}
 
+			long isCnt = 0;
+			long osCnt[] = new long[many.size()];
+			for(int i=0; i<osCnt.length; i++){
+				osCnt[i] = 0;
+			}
+
 			try {
 				is = one.getInputStream();
 				
@@ -264,7 +276,8 @@ public class Connect {
 				while(connectionOK){
 					byte[] buffer = new byte[BUFFER_SIZE];
 					int len = is.read(buffer, 0, BUFFER_SIZE);
-					System.out.println("ThreadSplit: read" + "[l=" + len + "] : " + getHexMain(buffer, 0, len) );
+					System.out.println("Split<: read" + "[c=" + isCnt + "|l=" + len + "] : " + getHexMain(buffer, 0, len) );
+					isCnt+=len;
 					
 					if(len>0){
 						for(int i=0;i<len; i++){
@@ -278,8 +291,8 @@ public class Connect {
 								byte[] buff = oBuf[i].getBuffer();
 								int offs = oBuf[i].getOffset();
 								int leng = oBuf[i].getLength();
-								System.out.println("ThreadSplit: write@" + i + "[l=" + leng + "|o=" + offs + "] : " + getHexMain(buff, offs, leng) );
-
+								System.out.println("Split<: write@" + i + "[c=" + osCnt[i] + "|l=" + leng + "|o=" + offs + "] : " + getHexMain(buff, offs, leng) );
+								osCnt[i]+=leng;
 								os[i].write(buff, offs, leng);
 								oBuf[i].markConsume(oBuf[i].getLength());
 								os[i].flush();
@@ -292,14 +305,14 @@ public class Connect {
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
-				if(TOMBSTONE!=0){
+				/*if(TOMBSTONE!=0){
 					System.err.println("========== TOMBSTONE ==========" + System.currentTimeMillis());
 					try {
 						Thread.sleep(TOMBSTONE);
 					} catch (InterruptedException e1) {
 						e1.printStackTrace();
 					}
-				}
+				}*/
 			} finally {
 				System.out.println("Final in ThreadSplit");
 				if(is!=null){
