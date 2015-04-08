@@ -37,8 +37,11 @@ public class Connect {
 		}
 		
 		if(many.size() == group.size() && one!=null){
-			ThreadSplit single2group = new ThreadSplit();
-			ThreadMix group2single = new ThreadMix();
+			ThreadSplit	single2group = new ThreadSplit();
+			ThreadMix	group2single = new ThreadMix();
+			
+			single2group.setTwin(group2single);
+			group2single.setTwin(single2group);
 			
 			single2group.start();
 			group2single.start();
@@ -149,7 +152,8 @@ public class Connect {
 	
 	class ThreadMix extends Thread{
 		private ThreadMix that;
-		private boolean connectionOK;
+		private boolean ioRunning;
+		private ThreadSplit twin;
 		
 		class ThreadRead extends Thread{
 			private int mId;
@@ -166,7 +170,8 @@ public class Connect {
 
 			@Override
 			public void run() {
-				while(connectionOK){
+				ioRunning = true;
+				while(ioRunning){
 					byte[] buffer = new byte[BUFFER_SIZE];
 					int len = -1;
 					try {
@@ -177,7 +182,7 @@ public class Connect {
 						e.printStackTrace();
 					}
 					if(len<0){
-						connectionOK = false;
+						ioRunning = false;
 						break;
 					}
 
@@ -190,6 +195,7 @@ public class Connect {
 						}
 					}
 				}
+				System.out.println(" MIX >: read@" + mId + " IO broken");
 			}
 			
 		}
@@ -220,19 +226,17 @@ public class Connect {
 				}
 				os = one.getOutputStream();
 
-				//ReentrantLock lock = new ReentrantLock();
-				
 				for(int i=0; i<many.size(); i++){
 					tRead[i] = new ThreadRead(i, is[i], iBuf[i]);
 					tRead[i].start();
-					System.out.println("MIX:ThreadRead[" + i + "] started");
+					//System.out.println("MIX:ThreadRead[" + i + "] started");
 				}
 				
-				connectionOK = true;
+				ioRunning = true;
 
 				int cur = 0;
 				
-				while(connectionOK){
+				while(ioRunning && !Thread.currentThread().isInterrupted()){
 					while(true){
 						synchronized(iBuf[cur]){
 							if(iBuf[cur].getLength()>0){
@@ -274,50 +278,6 @@ public class Connect {
 					}
 				}
 
-
-				/*
-				int cur = 0;
-				boolean connectionOK = true;
-				while(connectionOK){
-					for(int i=0; i<is.length; i++){
-						byte[] buffer = new byte[BUFFER_SIZE];
-						int len = is[i].read(buffer, 0, BUFFER_SIZE);
-						System.out.println(" MIX >: read@" + i + "[c=" + isCnt[i] + "|l=" + len + "] : " + getHexMain(buffer, 0, len) );
-						isCnt[i] += len;
-						if(len<0){
-							connectionOK = false;
-							break;
-						}
-						
-						if(len>0){
-							iBuf[i].append(buffer, len);
-						}
-						
-						while(true){
-							if(iBuf[cur].getLength()>0){
-								oBuf.append(iBuf[cur].fetch());
-								cur++;
-								if(cur>=many.size())
-									cur = 0;
-							}else{
-								break;
-							}
-						}
-						
-						if( oBuf.getLength()>0 ){
-							byte[] buff = oBuf.getBuffer();
-							int offs = oBuf.getOffset();
-							int leng = oBuf.getLength();
-							System.out.println(" MIX >: write[c=" + osCnt + "|l=" + leng + "|o=" + offs + "] : " + getHexMain(buff, offs, leng) );
-							osCnt+=leng;
-							os.write(buff, offs, leng);
-							oBuf.markConsume(leng);
-							os.flush();
-						}
-					}
-				}
-				*/
-				
 			} catch (IOException e) {
 				e.printStackTrace();
 				/*if(TOMBSTONE!=0){
@@ -344,12 +304,24 @@ public class Connect {
 						e.printStackTrace();
 					}
 				}
+				
+				if(twin!=null){
+					twin.interrupt();
+					synchronized(twin){
+						twin.notify();
+					}
+				}
 			}
+		}
+		
+		void setTwin(ThreadSplit thread){
+			twin = thread;
 		}
 
 	}
 
 	class ThreadSplit extends Thread{
+		private ThreadMix twin;
 
 		@Override
 		public void run() {
@@ -377,7 +349,7 @@ public class Connect {
 
 				int cur = 0;
 				boolean connectionOK = true;
-				while(connectionOK){
+				while(connectionOK && !Thread.currentThread().isInterrupted()){
 					byte[] buffer = new byte[BUFFER_SIZE];
 					int len = is.read(buffer, 0, BUFFER_SIZE);
 					System.out.println("Split<: read" + "[c=" + isCnt + "|l=" + len + "] : " + getHexMain(buffer, 0, len) );
@@ -433,7 +405,18 @@ public class Connect {
 						e.printStackTrace();
 					}
 				}
+				
+				if(twin!=null){
+					twin.interrupt();
+					synchronized(twin){
+						twin.notify();
+					}
+				}
 			}
+		}
+
+		void setTwin(ThreadMix thread){
+			twin = thread;
 		}
 	}
 	
